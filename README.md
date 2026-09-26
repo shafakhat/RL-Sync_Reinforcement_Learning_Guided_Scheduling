@@ -1,115 +1,126 @@
-# RLSyncBenchmark
+# Lock Benchmark Suite
 
-A Java benchmark that applies **Q-Learning** to adaptively control critical-section (CS) access, comparing the RL-based arbiter against three classical synchronisation mechanisms across varying thread counts and random seeds.
-
----
-
-## Overview
-
-`RLSyncBenchmark` trains a tabular Q-Learning agent — called **RL-Sync** — to decide whether each competing thread should *admit* immediately or *back off* before entering a critical section. The trained policy is then evaluated head-to-head against:
-
-| Method | Description |
-|---|---|
-| **RL-Sync** | Q-Learning arbiter (trained online, greedy at eval) |
-| **FairMutex** | Java `ReentrantLock` in fair mode |
-| **CLH** | Craig–Landin–Hagersten queue lock (spin-based) |
-| **ExpBackoff** | Exponential back-off spin lock |
-
----
-
-## Key Features
-
-- **Q-Learning with extended state space** — state encodes queue depth, CS occupancy, and an EMA-based load bucket
-- **ε-greedy exploration** with linear annealing from 0.40 → 0.04 over 220 training episodes
-- **Mutual exclusion verification** — runtime check ensures no two threads are ever inside the CS simultaneously
-- **Sub-millisecond timing** via busy-wait (`Thread.onSpinWait`) for microsecond-precision measurements
-- **Statistical reporting** — mean, std, P99, Zero-Delay Ratio (ZDR), contention rate, Welch t-test, and Cohen's d across 6 seeds
-
----
-
-## Configuration
-
-| Parameter | Default | Description |
-|---|---|---|
-| `CS_WORK_US` | 150 µs | Critical section work duration |
-| `THINK_US_BASE` | 120 µs | Base think time between CS entries |
-| `THINK_US_JITTER` | 80 µs | Random jitter added to think time |
-| `TRAIN_EPISODES` | 220 | Q-Learning training episodes |
-| `EVAL_REQUESTS` | 100 | Requests per thread during evaluation |
-| `SEEDS` | 6 | Independent repetitions per configuration |
-| `THREAD_COUNTS` | 2, 4, 6, 8 | Thread counts swept during benchmark |
-| `ALPHA` | 0.12 | Q-Learning rate |
-| `GAMMA` | 0.92 | Discount factor |
-
----
+A collection of Java lock implementations and micro-benchmark/diagnostic
+programs for measuring concurrent-lock throughput, latency, and correctness
+under configurable thread counts and workloads.
 
 ## Requirements
 
-- Java 11 or later (uses `Thread.onSpinWait()`)
-- No external dependencies — pure Java standard library
+- JDK 11 or later (`java`, `javac` on your `PATH`)
+- No external libraries or build tool required — everything is plain Java
+  in the default package with no third-party dependencies.
 
----
-
-## Build & Run
+Check your setup:
 
 ```bash
-# Compile
-javac RLSyncBenchmark.java
-
-# Run with default output directory (./mlsync_experiment_data/data)
-java RLSyncBenchmark
-
-# Run with custom output directory
-java RLSyncBenchmark /path/to/output/dir
+java -version
+javac -version
 ```
 
----
+## Clone
 
-## Output Files
+```bash
+git clone <this-repository-url>
+cd lock-benchmark-suite
+```
 
-All CSV files are written to the specified data directory:
+## Build
 
-| File | Contents |
+All sources live in `src/` and compile together with a single `javac`
+invocation:
+
+```bash
+mkdir -p out
+javac -encoding UTF-8 -d out src/*.java
+```
+
+This compiles all 50 `.java` files into `out/`.
+
+## Run
+
+Every program is a standalone class with a `public static void main`. Run
+any of them with:
+
+```bash
+java -cp out <ClassName>
+```
+
+Most programs print CSV-formatted results to standard output; redirect to a
+file if you want to keep the output:
+
+```bash
+java -cp out <ClassName> > results.csv
+```
+
+Some programs accept no arguments and use fixed internal configurations;
+a few accept optional command-line arguments (thread count, duration, etc.)
+— run the class with `--help` or check the top of its `main` method if a
+particular run needs tuning.
+
+### Runnable classes (contain `main`)
+
+| Class | What it runs |
 |---|---|
-| `sweep_results.csv` | Mean wait, CI95, std, P99, ZDR, contention for all methods × thread counts |
-| `convergence.csv` | Per-episode mean wait for RL-Sync vs FairMutex baseline (at 6 threads, seed 0) |
-| `qtable.csv` | Final Q-values and derived policy (ADMIT / BACKOFF) for all states |
-| `stats_rl_vs_mutex.csv` | Welch t-test and Cohen's d: RL-Sync vs FairMutex |
-| `stats_rl_vs_clh.csv` | Welch t-test and Cohen's d: RL-Sync vs CLH |
-| `stats_rl_vs_eb.csv` | Welch t-test and Cohen's d: RL-Sync vs ExpBackoff |
+| `AdaptiveCombiningBenchmark` | Benchmark harness for the adaptive combining lock (V1) |
+| `AdaptiveCombiningBenchmarkV2` | Benchmark harness for the adaptive combining lock (V2) |
+| `AdaptiveCombiningLockSafety` | Correctness/safety check for the adaptive combining lock (V1) |
+| `AdaptiveCombiningLockV2Safety` | Correctness/safety check for the adaptive combining lock (V2) |
+| `AdaptiveCombiningLockV3Safety` | Correctness/safety check for the adaptive combining lock (V3) |
+| `AdaptiveCombiningRealWorldBenchmark` | Benchmark harness using a real-world-style workload profile |
+| `AdaptiveMCSLockV3Safety` | Correctness/safety check for the adaptive MCS lock (V3) |
+| `AgingTripRateCheck` | Diagnostic for lock-aging/priority trip-rate behavior |
+| `CLHStress` | Stress test for the CLH queue lock |
+| `CSAwareSpinBenchmark` | Benchmark harness for critical-section-duration-aware spin sizing |
+| `CombiningBenchmark` | Benchmark harness for the base flat-combining lock |
+| `CombiningLockSafety` | Correctness/safety check for the base combining lock |
+| `EstimatorFreezeTest` | Diagnostic for the online duration-estimator behavior |
+| `FinalSweep` | Full parameter sweep across lock variants/thread counts/durations |
+| `GuardValidation` | Validation check for the reliability guard mechanism |
+| `JitterProbe` | Diagnostic for measuring host timing jitter |
+| `MCSLockSafety` | Correctness/safety check for the plain MCS lock |
+| `MeStressTest` | Stress-test harness |
+| `MechanismTrace` | Diagnostic that traces internal lock mechanism transitions |
+| `NT2Diagnostic` | Diagnostic focused on the 2-thread configuration |
+| `OverheadIsolation` | Micro-benchmark isolating fixed per-operation overhead |
+| `PhaseSweep` | Sweep across workload phases |
+| `PolicyDiagnostic` | Diagnostic for lock scheduling/backoff policy behavior |
+| `PollingOverheadCheck` | Micro-benchmark of polling-loop overhead |
+| `PrimitiveControlV2` | Control benchmark using primitive synchronization only |
+| `PrimitiveProbe` | Diagnostic probing primitive synchronization costs |
+| `PriorityLockBenchmark` | Benchmark harness for the priority lock |
+| `PriorityLockDiagnostic` | Diagnostic for priority-lock internal state |
+| `PriorityLockSafety` | Correctness/safety check for the priority lock (V1) |
+| `PriorityLockV2Safety` | Correctness/safety check for the priority lock (V2) |
+| `RLSyncBenchmark` | Main benchmark harness for the RL-Sync lock variants |
+| `RLSyncBenchmarkFixed` | Fixed-configuration variant of the RL-Sync benchmark |
+| `SimpleSpinlockSafety` | Correctness/safety check for a basic spinlock |
+| `StarvationCompare` | Benchmark comparing starvation behavior across locks |
+| `StructuralTest` | Structural/sanity test across lock variants |
+| `TailLatencyDiagnostic` | Diagnostic for tail-latency (p99, etc.) measurement |
+| `ThreeWayHomogeneous` | Benchmark comparing three lock variants under identical load |
+| `ViolationIsolation` | Diagnostic isolating mutual-exclusion violations |
+| `WarmupCheck` | Diagnostic for JIT/host warm-up effects on measurements |
 
----
+### Supporting classes (no `main`, used by the programs above)
 
-## Project Structure
+`AdaptiveCombiningLock`, `AdaptiveCombiningLockV2`, `AdaptiveCombiningLockV3`,
+`AdaptiveMCSLockV3`, `AdaptivePriorityLock`, `AdaptivePriorityLockV2`,
+`CombiningLock`, `MCSLock`, `TASLock`, `TATASLock`, `TicketLock` — lock
+implementations imported by the benchmark/diagnostic/safety classes above.
+
+## Example
+
+```bash
+mkdir -p out
+javac -encoding UTF-8 -d out src/*.java
+java -cp out StructuralTest > structural_test_output.csv
+```
+
+## Project layout
 
 ```
-RLSyncBenchmark.java
-│
-├── QTable                  # Tabular Q-Learning state/action model
-├── RLArbiter               # RL-based CS lock (CSLock implementation)
-├── FairMutex               # ReentrantLock(fair=true) wrapper
-├── CLHLock                 # CLH queue lock implementation
-├── ExpBackoff              # Exponential back-off lock
-├── Worker                  # Runnable worker simulating think + CS access
-├── Metrics                 # Per-lock latency and contention tracking
-└── main()                  # Training loop, evaluation sweep, CSV export
+lock-benchmark-suite/
+├── README.md
+├── .gitignore
+└── src/            # all Java sources (default package, no build tool needed)
 ```
-
----
-
-## Metrics Explained
-
-| Metric | Description |
-|---|---|
-| **Mean Wait (ms)** | Average time from lock request to acquisition |
-| **P99 (ms)** | 99th percentile wait latency |
-| **ZDR (%)** | Zero-Delay Ratio — fraction of acquisitions under 500 µs |
-| **Contention (%)** | Fraction of acquisitions where CS was occupied or queue was non-empty |
-| **Welch t** | Two-sample t-statistic (unequal variance) |
-| **Cohen's d** | Standardised effect size between two methods |
-
----
-
-## License
-
-MIT — free to use, modify, and distribute.
