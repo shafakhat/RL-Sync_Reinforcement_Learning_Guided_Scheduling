@@ -1,4 +1,4 @@
-# Lock Benchmark Suite
+# Spin-retry-locks
 
 A collection of Java lock implementations and micro-benchmark/diagnostic
 programs for measuring concurrent-lock throughput, latency, and correctness
@@ -20,8 +20,8 @@ javac -version
 ## Clone
 
 ```bash
-git clone <this-repository-url>
-cd lock-benchmark-suite
+git clone https://github.com/shafakhat/Spin-retry-locks.git
+cd Spin-retry-locks
 ```
 
 ## Build
@@ -119,7 +119,7 @@ java -cp out StructuralTest > structural_test_output.csv
 ## Project layout
 
 ```
-lock-benchmark-suite/
+Spin-retry-locks/
 ├── README.md
 ├── .gitignore
 └── src/            # all Java sources (default package, no build tool needed)
